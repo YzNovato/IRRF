@@ -1,0 +1,96 @@
+using System;
+
+// Classe que representa uma faixa de tributação do IRRF
+public class FaixaIRRF
+{
+    public decimal LimiteInferior { get; }
+    public decimal LimiteSuperior { get; }
+    public decimal Aliquota { get; }
+    public decimal Deducao { get; }
+
+    public FaixaIRRF(decimal limiteInferior, decimal limiteSuperior, decimal aliquota, decimal deducao)
+    {
+        LimiteInferior = limiteInferior;
+        LimiteSuperior = limiteSuperior;
+        Aliquota = aliquota;
+        Deducao = deducao;
+    }
+
+    public bool EstaNaFaixa(decimal valor)
+    {
+        if (LimiteSuperior == 0) // Última faixa (sem limite superior)
+            return valor >= LimiteInferior;
+        
+        return valor >= LimiteInferior && valor <= LimiteSuperior;
+    }
+}
+
+// Classe que representa a tabela completa do IRRF usando array em vez de List
+public class TabelaIRRF
+{
+    private readonly FaixaIRRF[] _faixas;
+
+    public TabelaIRRF()
+    {
+        // Inicializa a tabela com array em vez de List
+        _faixas = new FaixaIRRF[]
+        {
+            new FaixaIRRF(0, 2428.80m, 0, 0),
+            new FaixaIRRF(2428.81m, 2826.65m, 7.5m, 182.16m),
+            new FaixaIRRF(2826.66m, 3751.05m, 15, 394.16m),
+            new FaixaIRRF(3751.06m, 4664.68m, 22.5m, 675.49m),
+            new FaixaIRRF(4664.69m, 0, 27.5m, 908.73m) // Acima de 4664.68
+        };
+    }
+
+    public FaixaIRRF ObterFaixa(decimal baseCalculo)
+    {
+        // Percorre o array em vez de usar foreach
+        for (int i = 0; i < _faixas.Length; i++)
+        {
+            if (_faixas[i].EstaNaFaixa(baseCalculo))
+            {
+                return _faixas[i];
+            }
+        }
+        
+        throw new InvalidOperationException("Base de cálculo não se enquadra em nenhuma faixa da tabela.");
+    }
+}
+
+// Classe que calcula o IRRF (mantida igual)
+public class CalculadoraIRRF
+{
+    private readonly TabelaIRRF _tabelaIRRF;
+
+    public CalculadoraIRRF()
+    {
+        _tabelaIRRF = new TabelaIRRF();
+    }
+
+    public decimal CalcularIRRF(decimal salarioBase)
+    {
+        var faixa = _tabelaIRRF.ObterFaixa(salarioBase);
+        var imposto = salarioBase * (faixa.Aliquota / 100);
+        return imposto - faixa.Deducao;
+    }
+}
+
+// Exemplo de uso
+public class Program
+{
+    public static void Main()
+    {
+        var calculadora = new CalculadoraIRRF();
+        
+        // Exemplo 1: Salário base de R$ 2741,18 (como no exemplo original)
+        decimal valorIRRF = calculadora.CalcularIRRF(2741.18m);
+        Console.WriteLine($"Salário Base: R$ 2741,18");
+        Console.WriteLine($"IRRF: R$ {valorIRRF:F2}"); // Deve resultar em R$ 36,14
+        
+        // Exemplo 2: Salário base de R$ 4000,00
+        valorIRRF = calculadora.CalcularIRRF(4000m);
+        Console.WriteLine($"\nSalário Base: R$ 4000,00");
+        Console.WriteLine($"IRRF: R$ {valorIRRF:F2}");
+    }
+}
